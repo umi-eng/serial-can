@@ -1,7 +1,9 @@
 [package]
 name = "serial-can"
+description = "Serial CAN (slcan) for small systems."
 version = "0.1.0"
 edition = "2021"
+license = "MPL-2.0"
 
 [dependencies]
 embedded-can = "0.4.1"
