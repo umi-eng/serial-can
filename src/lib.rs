@@ -5,8 +5,17 @@
 mod frame;
 
 use core::fmt::{Debug, Display};
-use embedded_can::{Frame as _, Id};
+use embedded_can::{ExtendedId, Frame as _, Id, StandardId};
 pub use frame::Frame;
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take},
+    character::complete::{digit1, one_of},
+    combinator::map,
+    error::{Error, ErrorKind},
+    sequence::tuple,
+    Err, IResult,
+};
 
 /// Bitrate options.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -33,6 +42,26 @@ impl Setup {
     pub fn new(bitrate: Bitrate) -> Self {
         Self { bitrate }
     }
+
+    /// Try parsing a [`Setup`] command from a string.
+    pub fn try_parse(input: &str) -> IResult<&str, Self> {
+        let (input, (_, bitrate, _)) = tuple((tag("S"), digit1, tag("\r")))(input)?;
+
+        let bitrate = match bitrate {
+            "0" => Bitrate::Rate10kbit,
+            "1" => Bitrate::Rate20kbit,
+            "2" => Bitrate::Rate50kbit,
+            "3" => Bitrate::Rate100kbit,
+            "4" => Bitrate::Rate125kbit,
+            "5" => Bitrate::Rate250kbit,
+            "6" => Bitrate::Rate500kbit,
+            "7" => Bitrate::Rate800kbit,
+            "8" => Bitrate::Rate1000kbit,
+            _ => return Err(Err::Failure(Error::new(input, ErrorKind::Digit))),
+        };
+
+        Ok((input, Self { bitrate }))
+    }
 }
 
 impl Display for Setup {
@@ -49,6 +78,13 @@ impl Open {
     pub fn new() -> Self {
         Self {}
     }
+
+    /// Try parsing an [`Open`] command from a string.
+    pub fn try_parse(input: &str) -> IResult<&str, Self> {
+        let (input, _) = tag("O\r")(input)?;
+
+        Ok((input, Self::new()))
+    }
 }
 
 impl Display for Open {
@@ -64,6 +100,13 @@ pub struct Close {}
 impl Close {
     pub fn new() -> Self {
         Self {}
+    }
+
+    /// Try parsing a [`Close`] command from a string.
+    pub fn try_parse(input: &str) -> IResult<&str, Self> {
+        let (input, _) = tag("C\r")(input)?;
+
+        Ok((input, Self::new()))
     }
 }
 
@@ -89,6 +132,57 @@ impl Transmit {
         };
 
         Self { frame }
+    }
+
+    /// Try parsing a [`Transmit`] command from a string.
+    pub fn try_parse(input: &str) -> IResult<&str, Self> {
+        let (input, kind) = one_of("tTrR")(input)?;
+        let (input, id) = match kind {
+            't' | 'r' => {
+                let (input, id_hex) = take(3_usize)(input)?;
+                let id = u16::from_str_radix(id_hex, 16)
+                    .map_err(|_| Err::Failure(Error::new(input, ErrorKind::HexDigit)))?;
+                (input, Id::Standard(StandardId::new(id).unwrap()))
+            }
+            'T' | 'R' => {
+                let (input, id_hex) = take(8_usize)(input)?;
+                let id = u32::from_str_radix(id_hex, 16)
+                    .map_err(|_| Err::Failure(Error::new(input, ErrorKind::HexDigit)))?;
+                (input, Id::Extended(ExtendedId::new(id).unwrap()))
+            }
+            _ => unreachable!(), // other cases are impossible due to `one_of`
+        };
+
+        let (input, dlc) = take(1_usize)(input)?;
+        let dlc = usize::from_str_radix(dlc, 16)
+            .map_err(|_| Err::Failure(Error::new(input, ErrorKind::HexDigit)))?;
+
+        let (input, data) = if dlc > 0 {
+            take(dlc * 2_usize)(input)?
+        } else {
+            (input, "")
+        };
+
+        let data = if data.is_empty() {
+            [0; 8]
+        } else {
+            let mut array = [0; 8];
+            for i in 0..dlc {
+                array[i] = u8::from_str_radix(&data[i * 2..i * 2 + 2], 16)
+                    .map_err(|_| Err::Failure(Error::new(input, ErrorKind::HexDigit)))?;
+            }
+            array
+        };
+
+        let frame = if kind == 't' || kind == 'T' {
+            Frame::new(id, &data[..dlc]).unwrap()
+        } else {
+            Frame::new_remote(id, dlc).unwrap()
+        };
+
+        let (input, _) = tag("\r")(input)?;
+
+        Ok((input, Self::new(&frame)))
     }
 }
 
@@ -168,5 +262,56 @@ mod tests {
         let frame = Frame::new_remote(Id::Standard(StandardId::new(0x123).unwrap()), 0).unwrap();
         let transmit = Transmit::new(&frame);
         assert_eq!(format!("{}", transmit), "r1230\r");
+    }
+
+    #[test]
+    fn parse_transmit() {
+        assert_eq!(
+            Transmit::try_parse("t1230\r"),
+            Ok((
+                "",
+                Transmit::new(
+                    &Frame::new(Id::Standard(StandardId::new(0x123).unwrap()), &[]).unwrap()
+                )
+            ))
+        );
+
+        assert_eq!(
+            Transmit::try_parse("t4563112233\r"),
+            Ok((
+                "",
+                Transmit::new(
+                    &Frame::new(
+                        Id::Standard(StandardId::new(0x456).unwrap()),
+                        &[0x11, 0x22, 0x33]
+                    )
+                    .unwrap()
+                )
+            ))
+        );
+
+        assert_eq!(
+            Transmit::try_parse("T12ABCDEF2AA55\r"),
+            Ok((
+                "",
+                Transmit::new(
+                    &Frame::new(
+                        Id::Extended(ExtendedId::new(0x12ABCDEF).unwrap()),
+                        &[0xAA, 0x55]
+                    )
+                    .unwrap()
+                )
+            ))
+        );
+
+        assert_eq!(
+            Transmit::try_parse("r1230\r"),
+            Ok((
+                "",
+                Transmit::new(
+                    &Frame::new_remote(Id::Standard(StandardId::new(0x123).unwrap()), 0).unwrap()
+                )
+            ))
+        );
     }
 }
