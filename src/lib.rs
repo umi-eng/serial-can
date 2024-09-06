@@ -234,6 +234,17 @@ impl Command {
     }
 }
 
+impl core::fmt::Display for Command {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Command::Setup(setup) => setup.fmt(f),
+            Command::Open(open) => open.fmt(f),
+            Command::Close(close) => close.fmt(f),
+            Command::Transmit(transmit) => transmit.fmt(f),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
