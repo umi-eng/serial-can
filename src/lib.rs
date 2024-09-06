@@ -214,6 +214,26 @@ impl Display for Transmit {
     }
 }
 
+/// Command variants.
+enum Command {
+    Setup(Setup),
+    Open(Open),
+    Close(Close),
+    Transmit(Transmit),
+}
+
+impl Command {
+    /// Try parsing a command from a string.
+    pub fn try_parse(input: &str) -> IResult<&str, Self> {
+        alt((
+            map(Setup::try_parse, Command::Setup),
+            map(Open::try_parse, Command::Open),
+            map(Close::try_parse, Command::Close),
+            map(Transmit::try_parse, Command::Transmit),
+        ))(input)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
