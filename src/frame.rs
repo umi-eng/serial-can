@@ -1,7 +1,7 @@
 use embedded_can::Id;
 
 /// Serial CAN frame.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Frame {
     id: Id,
     remote: bool,

@@ -9,7 +9,7 @@ use embedded_can::{Frame as _, Id};
 pub use frame::Frame;
 
 /// Bitrate options.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[repr(u8)]
 pub enum Bitrate {
     Rate10kbit = 0,
@@ -24,7 +24,7 @@ pub enum Bitrate {
 }
 
 /// Setup port command.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Setup {
     pub bitrate: Bitrate,
 }
@@ -42,6 +42,7 @@ impl Display for Setup {
 }
 
 /// Open port command.
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Open {}
 
 impl Open {
@@ -57,6 +58,7 @@ impl Display for Open {
 }
 
 /// Close port command.
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Close {}
 
 impl Close {
@@ -72,6 +74,7 @@ impl Display for Close {
 }
 
 /// Transmit frame command.
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Transmit {
     frame: Frame,
 }
