@@ -216,7 +216,7 @@ impl Display for Transmit {
 
 /// Command variants.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-enum Command {
+pub enum Command {
     Setup(Setup),
     Open(Open),
     Close(Close),
