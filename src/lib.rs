@@ -4,7 +4,6 @@
 
 mod frame;
 
-use core::fmt::{Debug, Display};
 use embedded_can::{ExtendedId, Frame as _, Id, StandardId};
 pub use frame::Frame;
 use nom::{
@@ -64,7 +63,7 @@ impl Setup {
     }
 }
 
-impl Display for Setup {
+impl core::fmt::Display for Setup {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "S{:}\r", self.bitrate as u8)
     }
@@ -87,7 +86,7 @@ impl Open {
     }
 }
 
-impl Display for Open {
+impl core::fmt::Display for Open {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "O\r")
     }
@@ -110,7 +109,7 @@ impl Close {
     }
 }
 
-impl Display for Close {
+impl core::fmt::Display for Close {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "C\r")
     }
@@ -186,7 +185,7 @@ impl Transmit {
     }
 }
 
-impl Display for Transmit {
+impl core::fmt::Display for Transmit {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let cmd = match (self.frame.is_extended(), self.frame.is_remote_frame()) {
             (false, false) => 't',
