@@ -224,7 +224,7 @@ enum Command {
 }
 
 impl Command {
-    /// Try parsing a command from a string.
+    /// Try parsing a [`Command`] from a string.
     pub fn try_parse(input: &str) -> IResult<&str, Self> {
         alt((
             map(Setup::try_parse, Command::Setup),
