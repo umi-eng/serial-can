@@ -257,15 +257,46 @@ mod tests {
     }
 
     #[test]
+    fn parse_setup() {
+        assert_eq!(
+            Setup::try_parse("S0\r"),
+            Ok((
+                "",
+                Setup {
+                    bitrate: Bitrate::Rate10kbit
+                }
+            ))
+        );
+
+        assert!(Setup::try_parse("S9\r").is_err());
+        assert!(Setup::try_parse("SF\r").is_err());
+        assert!(Setup::try_parse("S \r").is_err());
+    }
+
+    #[test]
     fn format_open() {
         let open = Open::new();
         assert_eq!(format!("{}", open), "O\r");
     }
 
     #[test]
+    fn parse_open() {
+        assert_eq!(Open::try_parse("O\r"), Ok(("", Open {})));
+
+        assert!(Close::try_parse("o\r").is_err());
+    }
+
+    #[test]
     fn format_close() {
         let close = Close::new();
         assert_eq!(format!("{}", close), "C\r");
+    }
+
+    #[test]
+    fn parse_close() {
+        assert_eq!(Close::try_parse("C\r"), Ok(("", Close {})));
+
+        assert!(Close::try_parse("c\r").is_err());
     }
 
     #[test]
@@ -344,5 +375,20 @@ mod tests {
                 )
             ))
         );
+    }
+
+    #[test]
+    fn format_command() {
+        let cmd = Command::Open(Open::new());
+        assert_eq!(format!("{}", cmd), "O\r");
+
+        let cmd = Command::Setup(Setup::new(Bitrate::Rate100kbit));
+        assert_eq!(format!("{}", cmd), "S3\r");
+    }
+
+    #[test]
+    fn parse_command() {
+        let cmd = Command::try_parse("O\r");
+        assert_eq!(cmd, Ok(("", Command::Open(Open::new()))));
     }
 }
